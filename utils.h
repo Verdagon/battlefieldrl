@@ -110,6 +110,10 @@ public:
   inline Coord operator+(Coord that) const {
     return Coord(this->row + that.row, this->col + that.col);
   }
+
+  inline bool inside(Coord that) const {
+    return row >= 0 && col >= 0 && row < that.row && col < that.col;
+  }
 };
 
 inline std::ostream & operator<<(std::ostream & out, Coord coord) {
@@ -147,11 +151,9 @@ public:
 
 
 inline CoordIterator begin(Coord coord) {
-  flare("begin", coord);
   return CoordIterator(Coord(0, 0), coord);
 }
 inline CoordIterator end(Coord coord) {
-  flare("end", coord);
   return CoordIterator(Coord(coord.row, 0), coord);
 }
 

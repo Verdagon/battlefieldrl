@@ -10,17 +10,10 @@ public:
   MapImpl(const Coord & initSize, const char *const source[]) :
       mTiles(initSize, nullptr) {
 
-    flare(mTiles.size());
-
     for (Coord coord : mTiles.size()) {
-      flare(coord);
-
       char character = source[coord.row][coord.col];
       mTiles[coord] = sourceCharToTile(character);
-
     }
-
-    flare();
   }
 
   virtual ~MapImpl() {
