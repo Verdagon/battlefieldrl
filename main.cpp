@@ -1,33 +1,22 @@
 #include "Game.h"
 #include "UI.h"
 #include "utils.h"
+#include "Model.h"
 
 #include <iostream>
 #include <cassert>
 #include <vector>
 
+
 class Engine {
   GameUI * mUI;
-  const Map * mMap;
 
-  Player * mPlayer; // Redundant state, for making code more readable. Should be worth the risk, if the risk is mitigated by sanity checks
-  std::vector<Unit *> mUnits; // All units, including goblins and player
-
-  // I dont like this, perhaps we should switch to the builder pattern
-  bool mGameStarted;
-  mutable bool mInsideSanityCheck;
+  Model * mModel;
 
 public:
-  Engine(GameUI * ui) :
+  Engine(GameUI * ui, Model * model) :
       mUI(ui),
-      mMap(nullptr),
-      mPlayer(nullptr),
-      mGameStarted(false),
-      mInsideSanityCheck(false) { }
-
-  void setMap(const Map * map) {
-    mMap = map;
-  }
+      mModel(model) { }
 
   Coord findRandomOpenLocation() const {
     sanityCheck();
@@ -105,40 +94,6 @@ private:
       }
     }
     return true;
-  }
-
-  void sanityCheck() const {
-    // Protect against infinite recursion. For example, sanityCheck calls locationIsOpen which calls sanityCheck and so on
-    if (mInsideSanityCheck) {
-      return;
-    }
-
-    mInsideSanityCheck = true;
-
-    assert(mUI != nullptr); // That this is even a possibility is a failing of the C++ type system, as opposed to scheme or rust.
-
-    if (mGameStarted) {
-      assert(mPlayer != nullptr);
-      assert(mMap != nullptr);
-    }
-
-    if (mPlayer != nullptr) {
-      bool playerInUnits = false;
-      for (Unit * unit : mUnits) {
-        if (unit == dynamic_cast<const Unit *>(mPlayer)) {
-          playerInUnits = true;
-          break;
-        }
-      }
-      assert(playerInUnits);
-    }
-
-    for (Unit * unit : mUnits) {
-      // Make sure each unit is on free spot (free except for itself)
-      assert(locationIsOpen(unit->location, unit));
-    }
-
-    mInsideSanityCheck = false;
   }
 
   bool canMoveUnit(Unit * unit, Coord newLocation) const {

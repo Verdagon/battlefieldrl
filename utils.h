@@ -258,3 +258,94 @@ public:
     }
   };
 };
+
+template<typename T>
+class viterBase {
+public:
+  virtual T & operator*() const = 0;
+  virtual T * operator->() const = 0;
+  virtual void operator++() = 0;
+  virtual bool operator!=(const viterBase<T> & that) const = 0;
+};
+
+template<typename T>
+class viter : public viterBase<T> {
+  viterBase<T> * mIter;
+public:
+  virtual T & operator*() const override {
+    return mIter->operator*();
+  }
+  virtual T * operator->() const override {
+    return mIter->operator->();
+  }
+  virtual void operator++() override {
+    mIter->operator++();
+  }
+  virtual bool operator!=(const viterBase<T> & that) const override {
+    return mIter->operator!=(that);
+  }
+};
+
+template<typename T, typename TIter>
+class viterSpecialized : public viterBase<T> {
+  TIter mIter;
+
+public:
+  viterSpecialized(TIter && iter) :
+      mIter(std::forward<TIter>(iter)) {
+  }
+  virtual T & operator*() const override {
+    return mIter.operator*();
+  }
+  virtual T * operator->() const override {
+    return mIter.operator->();
+  }
+  virtual void operator++() override {
+    mIter.operator++();
+  }
+  virtual bool operator!=(const viterBase<T> & that) const override {
+    const viterImpl<T, TIter> * that2 = dynamic_cast<const viterImpl<T, TIter> *>(&that);
+    assert(that2 != nullptr);
+    return mIter != that2->mIter;
+  }
+};
+
+template<typename TIter>
+viter<TIter::value_type> viterify(TIter && t) {
+  return viter<T>(std::forward<TIter>(t));
+}
+
+template<typename T>
+class vrange {
+public:
+  using value_type = T;
+
+private:
+  viter<T> mBegin;
+  viter<T> mEnd;
+
+public:
+  range(viter<T> begin, viter<T> end) :
+      mBegin(begin),
+      mEnd(end) { }
+
+  viter<T> begin() const {
+    return mBegin;
+  }
+
+  viter<T> end() const {
+    return mEnd;
+  }
+};
+
+template<typename TRange>
+viter<TRange::value_type> vrangify(TRange && range) {
+  return vrangify(range.begin(), range.end());
+}
+
+template<typename TIter>
+viter<TIter::value_type> vrangify(TIter && begin, TIter && end) {
+  return vrange<T>(
+      viterify(std::forward<TIter>(begin)),
+      viterify(std::forward<TIter>(end)));
+}
