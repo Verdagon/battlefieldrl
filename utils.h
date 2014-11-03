@@ -234,9 +234,6 @@ public:
     T & operator*() const {
       return (*grid)[coordIter];
     }
-    T * operator->() const {
-      return &(*grid)[coordIter];
-    }
   };
 
   class const_iterator {
@@ -260,92 +257,147 @@ public:
 };
 
 template<typename T>
-class viterBase {
+class VIterBase {
 public:
-  virtual T & operator*() const = 0;
-  virtual T * operator->() const = 0;
+  virtual T operator*() = 0;
   virtual void operator++() = 0;
-  virtual bool operator!=(const viterBase<T> & that) const = 0;
+  virtual bool operator!=(const VIterBase<T> & that) const = 0;
 };
 
-template<typename T>
-class viter : public viterBase<T> {
-  viterBase<T> * mIter;
-public:
-  virtual T & operator*() const override {
-    return mIter->operator*();
-  }
-  virtual T * operator->() const override {
-    return mIter->operator->();
-  }
-  virtual void operator++() override {
-    mIter->operator++();
-  }
-  virtual bool operator!=(const viterBase<T> & that) const override {
-    return mIter->operator!=(that);
-  }
-};
-
-template<typename T, typename TIter>
-class viterSpecialized : public viterBase<T> {
+template<
+    typename TIter,
+    typename T = typename TIter::value_type>
+class VIterSpecialized : public VIterBase<T> {
   TIter mIter;
 
+  static_assert(std::is_same<T, typename TIter::value_type>::value, "moo");
+
 public:
-  viterSpecialized(TIter && iter) :
-      mIter(std::forward<TIter>(iter)) {
+  VIterSpecialized(TIter iter) :
+      mIter(iter) {
   }
-  virtual T & operator*() const override {
+  virtual T operator*() override {
     return mIter.operator*();
-  }
-  virtual T * operator->() const override {
-    return mIter.operator->();
   }
   virtual void operator++() override {
     mIter.operator++();
   }
-  virtual bool operator!=(const viterBase<T> & that) const override {
-    const viterImpl<T, TIter> * that2 = dynamic_cast<const viterImpl<T, TIter> *>(&that);
+  virtual bool operator!=(const VIterBase<T> & that) const override {
+    const VIterSpecialized<TIter> * that2 = dynamic_cast<const VIterSpecialized<TIter> *>(&that);
     assert(that2 != nullptr);
     return mIter != that2->mIter;
   }
 };
 
-template<typename TIter>
-viter<TIter::value_type> viterify(TIter && t) {
-  return viter<T>(std::forward<TIter>(t));
-}
-
 template<typename T>
-class vrange {
+class VIter {
 public:
   using value_type = T;
 
 private:
-  viter<T> mBegin;
-  viter<T> mEnd;
+  VIterBase<T> * mIter;
 
 public:
-  range(viter<T> begin, viter<T> end) :
+  VIter() = delete;
+  VIter(const VIter<T> & that) :
+      mIter(that.mIter) {
+    assert(mIter);
+  }
+  VIter(VIter<T> && that) :
+      mIter(that.mIter) {
+    assert(mIter);
+  }
+  VIter(VIterBase<T> * base) :
+      mIter(base) {
+    assert(mIter);
+  }
+  void operator=(const VIter<T> & that) {
+    mIter = that.mIter;
+    assert(mIter);
+  }
+  void operator=(VIter<T> && that) {
+    mIter = that.mIter;
+    assert(mIter);
+  }
+
+  T operator*() {
+    return mIter->operator*();
+  }
+  void operator++() {
+    mIter->operator++();
+  }
+  bool operator!=(const VIter<T> & that) const {
+    return mIter->operator!=(*that.mIter);
+  }
+};
+
+template<typename TIter>
+VIter<typename TIter::value_type> viter(TIter t) {
+  auto specialized = new VIterSpecialized<TIter>(t);
+  VIter<typename TIter::value_type> result(specialized);
+  return result;
+}
+
+template<typename T>
+class VRange {
+public:
+  using value_type = T;
+
+private:
+  VIter<T> mBegin;
+  VIter<T> mEnd;
+
+public:
+  VRange(VIter<T> begin, VIter<T> end) :
       mBegin(begin),
       mEnd(end) { }
 
-  viter<T> begin() const {
+  VIter<T> begin() const {
     return mBegin;
   }
 
-  viter<T> end() const {
+  VIter<T> end() const {
     return mEnd;
   }
 };
 
 template<typename TRange>
-viter<TRange::value_type> vrangify(TRange && range) {
+VRange<typename TRange::value_type> vrange(TRange range) {
   return vrangify(range.begin(), range.end());
 }
 
 template<typename TIter>
-viter<TIter::value_type> vrangify(TIter && begin, TIter && end) {
-  return vrange<T>(
-      viterify(std::forward<TIter>(begin)),
-      viterify(std::forward<TIter>(end)));
+VRange<typename TIter::value_type> vrange(TIter begin, TIter end) {
+  return VRange<typename TIter::value_type>(
+      viter(std::forward<TIter>(begin)),
+      viter(std::forward<TIter>(end)));
+}
+
+template<typename CastToPtr, typename Iter>
+class CastingIter {
+  Iter mIter;
+
+public:
+  using value_type = CastToPtr;
+
+  CastingIter(Iter iter) :
+      mIter(iter) { }
+
+  inline void operator++() {
+    mIter++;
+  }
+  inline bool operator==(const CastingIter<CastToPtr, Iter> & that) const {
+    return *mIter == *that.mIter;
+  }
+  inline bool operator!=(const CastingIter<CastToPtr, Iter> & that) const {
+    return !operator==(that);
+  }
+  inline CastToPtr operator*() {
+    return dynamic_cast<CastToPtr>(*mIter);
+  }
+};
+
+template<typename CastTo, typename Iter>
+CastingIter<CastTo, Iter> castingIter(Iter iter) {
+  return CastingIter<CastTo, Iter>(iter);
 }

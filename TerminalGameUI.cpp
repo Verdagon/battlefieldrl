@@ -5,7 +5,7 @@
 
 class TerminalGameUI : public GameUI {
 public:
-  virtual void display(const Map * map, const std::vector<Unit *> & units) override {
+  virtual void display(const Map * map, VRange<Unit *> units) override {
     using namespace Tiles;
 
     Grid<char> intermediateDisplayBuffer(map->size(), '?');
@@ -29,7 +29,7 @@ public:
           [&](Goblin * goblin) {
             character = 'g';
           });
-      intermediateDisplayBuffer[unit->location] = character;
+      intermediateDisplayBuffer[unit->location()] = character;
     }
 
     for (int row = 0; row < map->size().row; row++) {

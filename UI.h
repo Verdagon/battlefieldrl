@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Game.h"
+#include "model/Model.h"
 
 class PlayerCommand {
 public:
@@ -28,7 +28,7 @@ public:
   // Dont like how this mandates that the units be held in a vector
   // Would prefer some sort of virtual iterator, i think
   // Would also prefer const Unit * instead of Unit *
-  virtual void display(const Map * map, const std::vector<Unit *> & units) = 0;
+  virtual void display(const Map * map, VRange<Unit *> units) = 0;
 
   virtual PlayerCommand * getPlayerCommand() = 0;
 };
